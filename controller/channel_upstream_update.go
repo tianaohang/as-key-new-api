@@ -393,7 +393,7 @@ func fetchChannelUpstreamModelIDs(channel *model.Channel) ([]string, error) {
 			return nil, fmt.Errorf("failed to get channel key: %w", apiErr)
 		}
 		key = strings.TrimSpace(key)
-		models, err := gemini.FetchGeminiModels(baseURL, key, channel.GetSetting())
+		models, err := gemini.FetchGeminiModels(baseURL, key, channel.GetOtherSettings().GeminiAuthType, channel.GetSetting())
 		if err != nil {
 			return nil, err
 		}

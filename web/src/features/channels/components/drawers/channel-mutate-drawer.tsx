@@ -140,6 +140,7 @@ import {
   ADD_MODE_OPTIONS,
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
   CHANNEL_STATUS_LABELS,
+  CHANNEL_TYPE_GEMINI,
   CHANNEL_TYPE_NEW_API,
   CHANNEL_TYPE_OLLAMA,
   CHANNEL_TYPE_OPTIONS,
@@ -294,6 +295,7 @@ const SENSITIVE_FORM_FIELDS = [
   'vertex_key_type',
   'vertex_project_id',
   'vertex_api_version',
+  'gemini_auth_type',
   'aws_key_type',
   'aws_api_type',
   'azure_responses_version',
@@ -607,6 +609,7 @@ export function ChannelMutateDrawer({
   const currentAdvancedCustom = formValues.advanced_custom
   const currentHeaderOverride = formValues.header_override
   const currentProxy = formValues.proxy
+  const currentGeminiAuthType = formValues.gemini_auth_type
   const currentHttpProtocol = formValues.http_protocol
   const {
     unlocked: doubaoApiEditUnlocked,
@@ -1214,6 +1217,10 @@ export function ChannelMutateDrawer({
         advanced_custom: currentAdvancedCustom,
         header_override: currentHeaderOverride,
         proxy: currentProxy,
+        gemini_auth_type:
+          currentType === CHANNEL_TYPE_GEMINI
+            ? currentGeminiAuthType
+            : undefined,
       },
     }),
     [
@@ -1225,6 +1232,7 @@ export function ChannelMutateDrawer({
       currentAdvancedCustom,
       currentHeaderOverride,
       currentProxy,
+      currentGeminiAuthType,
     ]
   )
   const savedRequest = useMemo<ChannelModelDiscoveryRequest>(
@@ -3848,6 +3856,56 @@ export function ChannelMutateDrawer({
                     <FormDescription>
                       {t(
                         'For private deployments, format: https://fastgpt.run/api/openapi'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Google Gemini (type 24) */}
+            {currentType === CHANNEL_TYPE_GEMINI && (
+              <FormField
+                control={form.control}
+                name='gemini_auth_type'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Upstream authentication')}</FormLabel>
+                    <Select
+                      disabled={sensitiveLocked}
+                      items={[
+                        {
+                          value: 'x-goog-api-key',
+                          label: t('x-goog-api-key header (default)'),
+                        },
+                        {
+                          value: 'bearer',
+                          label: t('Authorization: Bearer header'),
+                        },
+                      ]}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent alignItemWithTrigger={false}>
+                        <SelectGroup>
+                          <SelectItem value='x-goog-api-key'>
+                            {t('x-goog-api-key header (default)')}
+                          </SelectItem>
+                          <SelectItem value='bearer'>
+                            {t('Authorization: Bearer header')}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {t(
+                        "Header that carries the channel key on upstream requests and model list fetching. Google's Gemini API uses x-goog-api-key; choose Bearer only when a Gemini-compatible upstream requires it. Veo video tasks always use x-goog-api-key."
                       )}
                     </FormDescription>
                     <FormMessage />

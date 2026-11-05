@@ -608,6 +608,7 @@ export async function fetchModels(data: {
   advanced_custom?: string
   header_override?: string
   proxy?: string
+  gemini_auth_type?: 'x-goog-api-key' | 'bearer'
 }): Promise<FetchModelsResponse> {
   const res = await api.post(
     '/api/channel/fetch_models',

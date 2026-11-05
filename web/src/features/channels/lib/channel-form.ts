@@ -20,6 +20,7 @@ import { z } from 'zod'
 
 import {
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
+  CHANNEL_TYPE_GEMINI,
   CHANNEL_TYPE_NEW_API,
   CHANNEL_TYPE_OLLAMA,
   CHANNEL_TYPE_TASK_PLUGIN,
@@ -282,6 +283,7 @@ export const channelFormSchema = z
     aws_key_type: z.enum(['ak_sk', 'api_key']).optional(), // AWS specific
     aws_api_type: z.enum(['invoke_model', 'mantle']).optional(),
     azure_responses_version: z.string().optional(), // Azure specific
+    gemini_auth_type: z.enum(['x-goog-api-key', 'bearer']).optional(), // Gemini: header that carries the key upstream
     // Field passthrough controls (stored in settings JSON)
     allow_service_tier: z.boolean().optional(), // OpenAI/Anthropic
     disable_store: z.boolean().optional(), // OpenAI only
@@ -477,6 +479,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   aws_key_type: 'ak_sk',
   aws_api_type: 'invoke_model',
   azure_responses_version: '',
+  gemini_auth_type: 'x-goog-api-key',
   // Field passthrough controls
   allow_service_tier: false,
   disable_store: false,
@@ -552,6 +555,7 @@ export function transformChannelToFormDefaults(
   let vertexProjectId = ''
   let vertexApiVersion: 'v1' | 'v1beta1' = 'v1'
   let azureResponsesVersion = ''
+  let geminiAuthType: 'x-goog-api-key' | 'bearer' = 'x-goog-api-key'
   let isEnterpriseAccount = false
   let awsKeyType: 'ak_sk' | 'api_key' = 'ak_sk'
   let awsApiType: 'invoke_model' | 'mantle' = 'invoke_model'
@@ -577,6 +581,8 @@ export function transformChannelToFormDefaults(
       vertexApiVersion =
         parsed.vertex_api_version === 'v1beta1' ? 'v1beta1' : 'v1'
       azureResponsesVersion = parsed.azure_responses_version || ''
+      geminiAuthType =
+        parsed.gemini_auth_type === 'bearer' ? 'bearer' : 'x-goog-api-key'
       isEnterpriseAccount = parsed.openrouter_enterprise === true
       awsKeyType = parsed.aws_key_type || 'ak_sk'
       awsApiType = parsed.aws_api_type || 'invoke_model'
@@ -641,6 +647,7 @@ export function transformChannelToFormDefaults(
     vertex_project_id: vertexProjectId,
     vertex_api_version: vertexApiVersion,
     azure_responses_version: azureResponsesVersion,
+    gemini_auth_type: geminiAuthType,
     aws_key_type: awsKeyType,
     aws_api_type: awsApiType,
     allow_service_tier: allowServiceTier,
@@ -740,6 +747,17 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
     settingsObj.azure_responses_version = formData.azure_responses_version
   } else if ('azure_responses_version' in settingsObj) {
     delete settingsObj.azure_responses_version
+  }
+
+  // Gemini channels send x-goog-api-key unless Bearer is chosen, so only
+  // Bearer is stored.
+  if (
+    formData.type === CHANNEL_TYPE_GEMINI &&
+    formData.gemini_auth_type === 'bearer'
+  ) {
+    settingsObj.gemini_auth_type = 'bearer'
+  } else {
+    delete settingsObj.gemini_auth_type
   }
 
   // Add enterprise account setting for OpenRouter (type 20)

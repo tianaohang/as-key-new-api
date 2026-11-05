@@ -395,6 +395,52 @@ func TestFetchModelsUsesSharedChannelFetchBehavior(t *testing.T) {
 	require.JSONEq(t, `{"success":true,"message":"","data":["claude-sonnet"]}`, recorder.Body.String())
 }
 
+// A new Gemini channel lists models with the auth type chosen in the form, so a
+// Bearer-only upstream is reachable before the channel is saved. The key stays
+// in a header and never reaches the URL.
+func TestFetchModelsGeminiSendsKeyInConfiguredHeader(t *testing.T) {
+	tests := []struct {
+		name              string
+		authType          string
+		wantGoogAPIKey    string
+		wantAuthorization string
+	}{
+		{name: "default", wantGoogAPIKey: "gemini-key"},
+		{name: "bearer", authType: "bearer", wantAuthorization: "Bearer gemini-key"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/v1beta/models", r.URL.Path)
+				assert.NotContains(t, r.URL.RawQuery, "gemini-key")
+				assert.Equal(t, tt.wantGoogAPIKey, r.Header.Get("x-goog-api-key"))
+				assert.Equal(t, tt.wantAuthorization, r.Header.Get("Authorization"))
+				w.Header().Set("Content-Type", "application/json")
+				_, err := w.Write([]byte(`{"models":[{"name":"models/gemini-test"}]}`))
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(server.Close)
+
+			body, err := common.Marshal(map[string]any{
+				"base_url":         server.URL,
+				"type":             constant.ChannelTypeGemini,
+				"key":              "gemini-key",
+				"gemini_auth_type": tt.authType,
+			})
+			require.NoError(t, err)
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest(http.MethodPost, "/api/channel/fetch_models", bytes.NewReader(body))
+			ctx.Request.Header.Set("Content-Type", "application/json")
+
+			FetchModels(ctx)
+
+			require.Equal(t, http.StatusOK, recorder.Code)
+			require.JSONEq(t, `{"success":true,"message":"","data":["gemini-test"]}`, recorder.Body.String())
+		})
+	}
+}
+
 func TestFetchNewAPIModelsUsesOpenAIContract(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/models", r.URL.Path)

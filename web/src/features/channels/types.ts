@@ -99,6 +99,7 @@ export interface ChannelOtherSettings {
   vertex_key_type?: 'json' | 'api_key'
   vertex_project_id?: string
   vertex_api_version?: 'v1' | 'v1beta1'
+  gemini_auth_type?: 'x-goog-api-key' | 'bearer'
   openrouter_enterprise?: boolean
   aws_key_type?: 'ak_sk' | 'api_key'
   aws_api_type?: 'invoke_model' | 'mantle'

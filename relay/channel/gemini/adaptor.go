@@ -164,8 +164,19 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *relaycommon.RelayInfo) error {
 	channel.SetupApiRequestHeader(info, c, req)
-	req.Set("x-goog-api-key", info.ApiKey)
+	setUpstreamAuthHeader(*req, info.ApiKey, info.ChannelOtherSettings.GeminiAuthType)
 	return nil
+}
+
+// setUpstreamAuthHeader puts the channel key in the header the channel's auth
+// type selects. Relay requests and model discovery share it, so a channel
+// pointed at a Bearer-only Gemini-compatible upstream works for both.
+func setUpstreamAuthHeader(header http.Header, apiKey string, authType dto.GeminiAuthType) {
+	if authType == dto.GeminiAuthTypeBearer {
+		header.Set("Authorization", "Bearer "+apiKey)
+		return
+	}
+	header.Set("x-goog-api-key", apiKey)
 }
 
 func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.GeneralOpenAIRequest) (any, error) {

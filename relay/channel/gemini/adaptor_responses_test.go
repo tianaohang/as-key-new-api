@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/MoeForge/moego/ojson"
@@ -9,6 +10,7 @@ import (
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -215,4 +217,34 @@ func TestConvertEmbeddingRequestRejectsContentParts(t *testing.T) {
 	wire, err := common.Marshal(got)
 	require.NoError(t, err)
 	assert.JSONEq(t, `["a cat","a dog"]`, ojson.GetBytes(wire, "requests.#.content.parts.0.text").Raw)
+}
+
+// The channel's auth type picks the one header that carries the key upstream;
+// Bearer must not also leak the key in x-goog-api-key.
+func TestSetupRequestHeaderSendsKeyInConfiguredHeader(t *testing.T) {
+	tests := []struct {
+		name              string
+		authType          dto.GeminiAuthType
+		wantGoogAPIKey    string
+		wantAuthorization string
+	}{
+		{name: "default", wantGoogAPIKey: "gemini-key"},
+		{name: "bearer", authType: dto.GeminiAuthTypeBearer, wantAuthorization: "Bearer gemini-key"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-test:generateContent", nil)
+			info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{
+				ApiKey:               "gemini-key",
+				ChannelOtherSettings: dto.ChannelOtherSettings{GeminiAuthType: tt.authType},
+			}}
+			header := http.Header{}
+
+			require.NoError(t, (&Adaptor{}).SetupRequestHeader(c, &header, info))
+
+			assert.Equal(t, tt.wantGoogAPIKey, header.Get("x-goog-api-key"))
+			assert.Equal(t, tt.wantAuthorization, header.Get("Authorization"))
+		})
+	}
 }

@@ -43,6 +43,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import type { TaskPluginOption } from '../../api'
 import {
+  CHANNEL_TYPE_GEMINI,
   CHANNEL_TYPE_OLLAMA,
   CHANNEL_TYPE_SGLANG,
   CHANNEL_TYPE_VLLM,
@@ -1112,6 +1113,38 @@ test('model discovery discards a response for old credentials and retains manual
     screen.getByRole('button', { name: 'current-upstream-model' })
   ).toBeVisible()
   expect(screen.getByText('custom-model')).toBeVisible()
+})
+
+test('a new Gemini channel discovers models with the selected upstream authentication', async () => {
+  const post = vi
+    .spyOn(api, 'post')
+    .mockResolvedValue({ data: { success: true, data: ['gemini-test'] } })
+  const user = userEvent.setup()
+  render(<ConfigurationHarness />)
+  await user.click(screen.getByRole('option', { name: /^Gemini / }))
+  fireEvent.change(screen.getByLabelText('API Key *'), {
+    target: { value: 'gemini-key' },
+  })
+  await user.click(
+    screen.getByRole('combobox', { name: 'Upstream authentication' })
+  )
+  await user.click(
+    screen.getByRole('option', { name: 'Authorization: Bearer header' })
+  )
+  await user.click(screen.getByRole('button', { name: 'Fetch from Upstream' }))
+
+  expect(
+    await screen.findByRole('checkbox', { name: 'gemini-test' })
+  ).toBeVisible()
+  expect(post).toHaveBeenCalledWith(
+    '/api/channel/fetch_models',
+    expect.objectContaining({
+      type: CHANNEL_TYPE_GEMINI,
+      key: 'gemini-key',
+      gemini_auth_type: 'bearer',
+    }),
+    expect.anything()
+  )
 })
 
 test('model discovery reports failures inline and allows an empty result to fall back to manual models', async () => {

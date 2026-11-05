@@ -95,6 +95,14 @@ const (
 	VertexKeyTypeAPIKey VertexKeyType = "api_key"
 )
 
+// GeminiAuthType selects the header that carries a Gemini channel's key upstream.
+type GeminiAuthType string
+
+const (
+	GeminiAuthTypeGoogAPIKey GeminiAuthType = "x-goog-api-key" // 默认：x-goog-api-key: <key>
+	GeminiAuthTypeBearer     GeminiAuthType = "bearer"         // Authorization: Bearer <key>，用于只接受 Bearer 的 Gemini 兼容上游
+)
+
 type AwsKeyType string
 
 const (
@@ -114,6 +122,7 @@ type ChannelOtherSettings struct {
 	VertexKeyType                         VertexKeyType         `json:"vertex_key_type,omitempty"`    // "json" or "api_key"
 	VertexProjectID                       string                `json:"vertex_project_id,omitempty"`  // 仅当 vertex_key_type=api_key 时使用；JSON 模式下从 service account 解析
 	VertexAPIVersion                      string                `json:"vertex_api_version,omitempty"` // Google 模型（Gemini、Imagen）请求路径版本："v1"（默认）或 "v1beta1"
+	GeminiAuthType                        GeminiAuthType        `json:"gemini_auth_type,omitempty"`   // Gemini 渠道上游鉴权方式："x-goog-api-key"（默认）或 "bearer"
 	OpenRouterEnterprise                  *bool                 `json:"openrouter_enterprise,omitempty"`
 	ClaudeBetaQuery                       bool                  `json:"claude_beta_query,omitempty"`          // Claude 渠道是否强制追加 ?beta=true
 	AllowServiceTier                      bool                  `json:"allow_service_tier,omitempty"`         // 是否允许 service_tier 透传（默认过滤以避免额外计费）

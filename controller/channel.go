@@ -641,6 +641,14 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 		}
 	}
 
+	if channel.Type == constant.ChannelTypeGemini {
+		switch channel.GetOtherSettings().GeminiAuthType {
+		case "", dto.GeminiAuthTypeGoogAPIKey, dto.GeminiAuthTypeBearer:
+		default:
+			return common.NewMessage("Gemini auth type must be x-goog-api-key or bearer")
+		}
+	}
+
 	// Codex OAuth key validation (optional, only when JSON object is provided)
 	if channel.Type == constant.ChannelTypeCodex {
 		trimmedKey := strings.TrimSpace(channel.Key)
@@ -1380,13 +1388,14 @@ func equalStringPtr(a, b *string) bool {
 }
 
 type fetchModelsRequest struct {
-	ChannelID      int     `json:"channel_id"`
-	BaseURL        *string `json:"base_url"`
-	Type           int     `json:"type"`
-	Key            string  `json:"key"`
-	AdvancedCustom *string `json:"advanced_custom"`
-	HeaderOverride *string `json:"header_override"`
-	Proxy          *string `json:"proxy"`
+	ChannelID      int                `json:"channel_id"`
+	BaseURL        *string            `json:"base_url"`
+	Type           int                `json:"type"`
+	Key            string             `json:"key"`
+	AdvancedCustom *string            `json:"advanced_custom"`
+	HeaderOverride *string            `json:"header_override"`
+	Proxy          *string            `json:"proxy"`
+	GeminiAuthType dto.GeminiAuthType `json:"gemini_auth_type"`
 }
 
 func buildAdvancedCustomModelPreviewChannel(req fetchModelsRequest) (*model.Channel, error) {
@@ -1493,6 +1502,9 @@ func FetchModels(c *gin.Context) {
 			Type:    req.Type,
 			Key:     key,
 			BaseURL: &baseURL,
+		}
+		if req.Type == constant.ChannelTypeGemini {
+			channel.SetOtherSettings(dto.ChannelOtherSettings{GeminiAuthType: req.GeminiAuthType})
 		}
 	}
 
